@@ -1,0 +1,231 @@
+## Analyse en Componsantes Principales (ACP) avec les données Track (records)
+
+#1. Préparation des données et analyse préliminaire
+```{r}
+library(FactoMineR)
+library(factoextra)
+library(ggplot2)
+library(corrplot)
+``` 
+# Chargement des données 
+```{r}
+track_data <- read.csv("C:/Users/gpkib/Gpkibiti Dropbox/Gael Kibiti/Université de Lille/Analyse de données I (6ECTS)/track.csv", sep=";")
+```
+# Visualisation des données crées
+```{r}
+print(df)
+```
+#2. Exploration des données
+La colonne des Pays n'ayant pas de valeurs numériques doit être exclue de la base afin de faciliter l'application de l'ACP.
+```{r}
+cat("Dimensions de la data frame:", dim(track_data), "\n")
+cat("\nStructure des données:\n")
+str(track_data)
+cat("\nStatistiques descriptives:\n")
+summary(track_data[,1:8])
+```
+La base de données comporte 55 individus (pays) et _ variabels quantitatives (épreuves sportives)
+
+#3. Préparation des données pour l'ACP: suppression de la colonne PAYS
+```{r}
+data_acp <- track_data[,-9] 
+print(data_acp)
+```
+# Renommer les lignes de la base de données
+```{r}
+row.names(data_acp) <- df$PAYS
+print(row.names(data_acp))
+```
+#4. Réalisation de l'ACP avec les données préparées
+```{r}
+res.pca <- PCA(data_acp,scale.unit=TRUE, graph=FALSE)
+# scale.unit pour standardiser : centrer et reduire des données
+# graph=FASLE : pour ne pas afficher le graphique automatiquement
+print(res.pca)
+```
+#5. Matrice de corrélation
+```{r}
+matrix_cor <- cor(track_data[,1:8])
+print("Matrice de corrélation:")
+print(round(matrix_cor,2))
+```
+Cette matrice de correlation nous permet d'observer de très fortes correlations qui existent entre varibales. Nous observons majoritairement les correlations suivantes: 
+
+MARATHON et X10000M : 0.94
+X100 et X200M : 0.92
+X1500M et X10000M : 0.93
+X1500M et X800M : 0.92
+ce qui nous permet de dire que les performances sur ces épreuves sont liées d'un pays à l'autre. 
+
+# Visualisation de la matrice de corrélation
+```{r}
+corrplot(matrix_cor, method = "color", type = "upper", 
+         order = "hclust", tl.cex = 0.8, tl.col = "black",
+         title = "Matrice de corrélation des épreuves athlétiques")
+```
+#6. Valeurs propres et poucentage de variance expliquée
+```{r}
+print("Valeurs propres:")
+print(res.pca$eig,2)
+```
+```{r}
+cat("\n Dim1:", round(res.pca$eig[1,2], 2), "% | Dim2:", 
+    round(res.pca$eig[2,2], 2), "% | Total:", 
+    round(res.pca$eig[2,3], 2), "%\n")
+```
+
+
+Ce résultat nous permet de ne retenir que deux composantes principales. 
+
+Composante 1 : 82.78% de variance de la variabilité du nuage des individus est expliqueé.
+Composante 2 : 10.97% de variance de la variabilité du nuage des individus est expliquée.
+
+Ainsi 93.75%  (soit 82.78% + 10.97%) de la variance cumulative est expliquée par les deux premières composantes lesquelles par conséquent expliquent quasiment toute l'information enendrée par la base de données.
+
+# Interprétation
+La première composante résume la majorité de l'information et les deux premiers axes captent pratiquement toute la structure d'après la règle de Kaiser. Par conséquent, nous validons le choix des axes dans la suite notre analyse
+. 
+#7. Eboulis des valeurs propres
+```{r}
+fviz_eig(res.pca, addlabels = TRUE, ylim=c(0,100)) +
+  ggtitle("Eboulis des valeurs propres") + theme_minimal()
+```
+D'après le graphique, nous confirmons éventuellement le choix des deux premiers axes associées plus grandes valeurs propres. 
+
+#9. Analyse des variables (cercle des corrélations)
+Ici, nous allons plus nous intéresser aux variables ayant une qualité (cos^2 > 0.90 sur au moins un axe) dans le but de déterminer les variables qui ont une excellente qualité de représentation. 
+
+```{r}
+print(res.pca$var$cos2,2)
+```
+# Observation: 
+Les variables X800M et X1500M ont des qualités > 0.90%. Ce qui est très excellent. Cependant, leur position sur le plan factoriel est très fiable. 
+
+Par contre les autres variables ont une bonne qualité (0.60 < cos2 < 0.89).
+```{r}
+fviz_pca_var(res.pca,
+             col.var = "cos2",
+             gradient.cols=c("red","orange","darkgreen"),
+             repel=TRUE)+ 
+  ggtitle("Cercle des correlations entre variables")+
+  theme_minimal()
+```
+gray : Qualité excellente (cos2 proche de 1)
+green : Qualité moyenne
+rouge : Qualité faible
+
+#10. Analyse des individus (Plan factoriel)
+Ici, nous allons plus nous intéresser aux contributions des individus sur les deux axes du plan dans le but de déterminer les individus dont la projection réflète la réalité. 
+
+```{r}
+fviz_pca_ind(res.pca,
+             col.ind = "cos2",
+             gradient.cols=c("red","orange","darkgreen"),
+             repel=TRUE)+
+  ggtitle("Plan factoriel des individus (Pays)")+
+  theme_minimal()
+```
+#11. Biplot (individus et variables)
+```{r}
+fviz_pca_biplot(res.pca,
+                repel=TRUE,
+                col.var = "blue",
+                col.ind = "red")+
+  ggtitle("Biplot ACP")+
+  theme_minimal()
+```
+# 11. Contributions
+
+# Variables les plus contributives Dim1
+```{r}
+fviz_contrib(res.pca, choice = "var", axes = 1, top = 8) +
+  ggtitle("Contribution des variables - Dim1")
+```
+Les variables contribuant le plus sur l'axe 1 sont particulièrement : X1500M, X800M, X10000M, X5000M, X400M, X100M, X200M, MARATHON.
+
+# Variables les plus contributives Dim2
+```{r}
+fviz_contrib(res.pca, choice = "var", axes = 2, top = 8) +
+  ggtitle("Contribution des variables - Dim2")
+```
+Les variables contribuant le plus sur l'axe 2 sont particulièrement : X100M, X200M, MARATHON.
+
+# Pays les plus contributifs Dim1
+```{r}
+fviz_contrib(res.pca, choice = "ind", axes = 1, top = 10) +
+  ggtitle("Contribution des pays - Dim1")
+```
+Les contributions de tous ces pays sont fortement négligeables sur l'axe 1.
+
+# Pays les plus contributifs Dim2
+```{r}
+fviz_contrib(res.pca, choice = "ind", axes = 2, top = 10) +
+  ggtitle("Contribution des pays - Dim2")
+```
+Les pays contribuant le plus sur l'axe 2 sont particulièrement : domrep, wsamoa, singapor et d'autres. 
+
+# 12. Résultats et interprétation
+
+# Coordonnées des variables
+```{r}
+print("Coordonnées des variables:")
+print(round(res.pca$var$coord, 2))
+```
+# Contributions des variables
+```{r}
+print("\nContributions des variables (%):")
+print(round(res.pca$var$contrib, 2))
+```
+# Variables importantes pour chaque dimension
+```{r}
+cat("\nVariables importantes Dim1 (|coord| > |1/55| = 0.8):\n")
+print(rownames(res.pca$var$coord)[abs(res.pca$var$coord[,1]) > 0.8])
+```
+```{r}
+cat("\nVariables importantes Dim2 (|coord| > 0.8):\n")
+print(rownames(res.pca$var$coord)[abs(res.pca$var$coord[,2]) > 0.8])
+```
+Aucune variable n'a aucune contribution forte sur le deuxième axe. 
+
+## Analyse détaillée
+
+# Axe 1 (Dim 1): 
+
+Ce premier axe sépare les pays selon leur profil de performance globale. Les valeurs fortement négatives ou positives indiquent des comportements très éloignés de la moyenne.
+
+# Axe 2 (Dim 2): 
+
+Le deuxième axe ajoute une nuance supplémentaire, souvent en mettant en avant une forme de spécialisation, de contraste régional ou d’autres critères secondaires importants.
+
+
+# Cercle des corrélations (variables les mieux projetées) 
+Les variables les mieux projetées sur l’axe 1 sont les courses de fond : X1500M, X5000M, X10000M, MARATHON (coordonnées proches de 0.35–0.37 sur l'axe 1).
+
+Sur l’axe 2, le X100M (sprint court) est le plus différent, avec une coordonnée élevée (0.56).
+
+# Plan factoriel des individus (pays représentatifs/atypiques) :
+
+Les pays les plus extrêmes sur l’axe 1 (performances généralisées ou très faibles) :
+
+USA (-3.46), GBNI (-3.05), USSR (-2.65), Italy (-2.75), France (-2.19), Kenya (-2.19)
+
+Ils sont très performants sur l’ensemble des épreuves.
+
+Pays très atypiques positifs : Cookis (10.65), Wsamoa (7.29), Mauritiu (4.30), PNG (3.94)
+
+Il s’agit probablement de petits pays dont le profil est très éloigné du reste.
+
+Sur l’axe 2 :
+
+Domrep (-2.47), Singapor (-1.80), Wsamoa (-1.92) sont des cas fortement atypiques.
+
+Costa, Guatemal, Mauritiu ont des profils factoriels positifs particuliers et se démarquent des pays occidentaux.
+
+# Biplot (vue globale groupes pays & performances associées) :
+
+Nous observons que les pays en négatif sur l'axe 1 sont les grandes puissances de l’athlétisme mondial.
+
+Ceux en positif sont souvent petits, moins compétitifs ou avec des singularités dans les résultats.
+
+Les variables endurance différencient fortement les pays, formant deux grands groupes : « pays puissants sur tout » vs « pays plus spécialisés ou en retrait ».
+
